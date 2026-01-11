@@ -1,3 +1,4 @@
+import pickle
 import tkinter as tk
 from tkinter import ttk, messagebox
 import random
@@ -27,16 +28,24 @@ class LotteryApp:
         # 示例数据 - 可以根据需要修改
         self.data = [
             ["从前往后数第1个", "从前往后数第2个", "从前往后数第3个", "从前往后数第4个", "从前往后数第5个"],
-            ["从门口往内数第1个", "从门口往内数第2个", "从门口往内数第3个", "从门口往内数第4个", "从门口往内数第5个", "从门口往内数第6个", "从门口往内数第7个", "从门口往内数第8个"]
+            ["从门口往内数第1个", "从门口往内数第2个", "从门口往内数第3个", "从门口往内数第4个", "从门口往内数第5个",
+             "从门口往内数第6个", "从门口往内数第7个", "从门口往内数第8个"]
         ]
-        # 创建8行，每行都是第一个子列表的数据
-        self.data_rows = [self.data[0] for _ in range(8)]
-        # 创建5列，每列都是第二个子列表的数据
-        self.data_cols = [self.data[1] for _ in range(5)]
+
+        # 创建5行，每行都是第二个子列表的数据
+        self.data_rows = [self.data[1] for _ in range(5)]
+        # 创建8列，每列都是第一个子列表的数据
+        self.data_cols = [self.data[0] for _ in range(8)]
 
         # 记录每行/列剩余可选的元素
         self.available_rows = [row[:] for row in self.data_rows]  # 深拷贝每行数据
         self.available_cols = [col[:] for col in self.data_cols]  # 深拷贝每列数据
+
+        # 创建完整列表并初始化可用列表
+        self.data_list = []
+        with open('bin/pkl/data.pkl', 'rb') as file:
+            self.data_list = pickle.load(file)
+        self.available_list = self.data_list[:]  # 深拷贝完整列表
 
         # 悬浮窗变量
         self.floating_window = None
@@ -73,8 +82,16 @@ class LotteryApp:
         self.floating_window.attributes('-toolwindow', True)
         self.floating_window.attributes('-topmost', True)  # 始终置顶
 
-        # 设置悬浮窗大小和位置
-        self.floating_window.geometry("150x50+100+100")
+        # 设置悬浮窗大小
+        self.floating_window.geometry("60x60")
+
+        # 获取屏幕尺寸并设置悬浮窗在左下角
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x_pos = 10  # 距离左边10像素
+        y_pos = screen_height - 60 - 100 # 距离底部10像素（窗口高度60+边距100）
+        self.floating_window.geometry(f"60x60+{x_pos}+{y_pos}")
+
         self.floating_window.overrideredirect(True)  # 移除窗口边框
 
         # 创建悬浮窗内容框架
@@ -82,35 +99,15 @@ class LotteryApp:
                                highlightbackground='#34495E', highlightthickness=2)
         float_frame.pack(fill='both', expand=True)
 
-        # 悬浮窗图标（使用字符模拟）
-        icon_label = tk.Label(float_frame, text="🎯", bg='#2C3E50', fg='white', font=('Arial', 12))
-        icon_label.pack(side='left', padx=(10, 5), pady=5)
-
-        # 悬浮窗标签
-        float_label = tk.Label(float_frame, text=" 快速点名 ", bg='#2C3E50', fg='white',
-                               font=('Arial', 10, 'bold'))
-        float_label.pack(side='left', pady=5)
-
-        # 按钮框架
-        button_frame = tk.Frame(float_frame, bg='#2C3E50')
-        button_frame.pack(side='right', padx=(0, 5), pady=5)
-
-        # 恢复主窗口按钮
-        restore_btn = tk.Button(button_frame, text="▲", command=self.restore_main_window,
-                               width=3, height=1, bg='#3498DB', fg='white',
-                               font=('Arial', 10, 'bold'), relief='flat', bd=0,
-                               activebackground='#2980B9', activeforeground='white')
-        restore_btn.pack(side='left', padx=2)
-
-        # 关闭悬浮窗按钮
-        close_btn = tk.Button(button_frame, text="×", command=self.close_floating_window,
-                             width=3, height=1, bg='#E74C3C', fg='white',
-                             font=('Arial', 10, 'bold'), relief='flat', bd=0,
-                             activebackground='#C0392B', activeforeground='white')
-        close_btn.pack(side='left', padx=2)
+        # 悬浮窗图标
+        icon_label = tk.Label(float_frame, text="🎯", bg='#2C3E50', fg='white', font=('Arial', 20))
+        icon_label.pack(expand=True, fill='both')
 
         # 使悬浮窗可拖动
         self.make_draggable(self.floating_window, float_frame)
+
+        # 绑定点击事件恢复主窗口
+        icon_label.bind("<Button-1>", lambda e: self.restore_main_window())
 
     def make_draggable(self, window, widget):
         """使窗口可通过指定部件拖动"""
@@ -150,6 +147,7 @@ class LotteryApp:
         # 重新初始化可用列表
         self.available_rows = [row[:] for row in self.data_rows]
         self.available_cols = [col[:] for col in self.data_cols]
+        self.available_list = self.data_list[:]
         messagebox.showinfo("重置成功", "点名列表已重置，可以重新开始点名！")
 
     def setup_main_menu(self):
@@ -159,10 +157,10 @@ class LotteryApp:
             widget.destroy()
 
         title_label = tk.Label(self.root, text="点名程序", font=("Arial", 20))  # 增大字体
-        title_label.pack(pady=30)  # 增加间距
+        title_label.pack(pady=20)  # 增加间距
 
         button_frame = tk.Frame(self.root)
-        button_frame.pack(pady=50)  # 增加间距
+        button_frame.pack(pady=20)  # 增加间距
 
         row_button = tk.Button(
             button_frame,
@@ -182,10 +180,19 @@ class LotteryApp:
         )
         col_button.pack(pady=15)  # 增加间距
 
+        list_button = tk.Button(
+            button_frame,
+            text="从列表点名",
+            command=self.list_lottery_mode,
+            width=25,  # 增加宽度
+            height=3   # 增加高度
+        )
+        list_button.pack(pady=15)  # 增加间距
+
         # 添加重置按钮
         reset_button = tk.Button(
             button_frame,
-            text="重置点名列表",
+            text="重置点名",
             command=self.reset_lists,
             width=25,  # 增加宽度
             height=2,   # 增加高度
@@ -195,6 +202,43 @@ class LotteryApp:
         )
         reset_button.pack(pady=15)  # 增加间距
 
+    def list_lottery_mode(self):
+        """从列表点名模式"""
+        # 清空当前界面
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        title_label = tk.Label(self.root, text="从列表点名", font=("Arial", 20))  # 增大字体
+        title_label.pack(pady=20)  # 增加间距
+
+        # 显示列表信息
+        info_frame = tk.Frame(self.root)
+        info_frame.pack(pady=15)  # 增加间距
+
+        remaining_count = len(self.available_list)
+        total_count = len(self.data_list)
+        tk.Label(info_frame, text=f"剩余人数: {remaining_count}/{total_count}", font=("Arial", 14)).pack()
+
+        # 点名按钮
+        draw_button = tk.Button(
+            self.root,
+            text="开始点名",
+            command=self.draw_from_list,
+            width=20,  # 增加宽度
+            height=3   # 增加高度
+        )
+        draw_button.pack(pady=20)  # 增加间距
+
+        # 返回主菜单按钮
+        back_button = tk.Button(
+            self.root,
+            text="返回主菜单",
+            command=self.setup_main_menu,
+            width=20,  # 增加宽度
+            height=2   # 增加高度
+        )
+        back_button.pack(pady=15)  # 增加间距
+
     def row_lottery_mode(self):
         """按行点名模式"""
         # 清空当前界面
@@ -202,7 +246,7 @@ class LotteryApp:
             widget.destroy()
 
         title_label = tk.Label(self.root, text="按行点名", font=("Arial", 20))  # 增大字体
-        title_label.pack(pady=30)  # 增加间距
+        title_label.pack(pady=20)  # 增加间距
 
         # 行选择
         row_frame = tk.Frame(self.root)
@@ -329,10 +373,21 @@ class LotteryApp:
         # 显示结果
         self.show_result(winner)
 
+    def draw_from_list(self):
+        """从列表中抽取一人"""
+        if not self.available_list:
+            messagebox.showwarning("提示", "所有人都已被点名过！")
+            return
+
+        winner = random.choice(self.available_list)
+        self.available_list.remove(winner)
+        self.show_result(winner)
+
     def show_result(self, winner):
         """显示点名结果"""
         result_window = tk.Toplevel(self.root)
         result_window.title("点名结果")
+        result_window.iconbitmap("bin/image/Logo_Mr.X.ico")
         result_window.geometry("400x200")  # 增大结果窗口尺寸
         result_window.resizable(False, False)
 
@@ -352,7 +407,7 @@ class LotteryApp:
         result_window.transient(self.root)
         result_window.grab_set()
 
-        tk.Label(result_window, text=f"恭喜！", font=("Arial", 24)).pack(pady=25)  # 增大字体和间距
+        tk.Label(result_window, text=f"恭喜！", font=("Arial", 24)).pack(pady=15)  # 增大字体和间距
         tk.Label(result_window, text=f"{winner}", font=("Arial", 28), fg="red").pack(pady=15)  # 增大字体和间距
 
         ok_button = tk.Button(
@@ -362,7 +417,7 @@ class LotteryApp:
             width=12,  # 增加宽度
             height=2   # 增加高度
         )
-        ok_button.pack(pady=15)  # 增加间距
+        ok_button.pack(pady=0)  # 增加间距
 
 if __name__ == "__main__":
     root = tk.Tk()
