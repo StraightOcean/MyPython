@@ -1,5 +1,6 @@
 import json
-from time import sleep
+import os
+import sys
 
 import requests
 from selenium import webdriver
@@ -8,11 +9,22 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.edge.service import Service
 from selenium.webdriver.edge.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
-import time
+from time import sleep
 import random
 
 # 设置 WebDriver 路径
-driver_path = "bin/msedgedriver.exe"
+def get_driver_path():
+    """获取 EdgeDriver 的正确路径，支持打包和未打包环境"""
+    if getattr(sys, 'frozen', False):
+        # 打包后的环境
+        base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    else:
+        # 开发环境
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+    return os.path.join(base_path, 'bin', 'msedgedriver.exe')
+
+driver_path = get_driver_path()
 
 # 配置反检测选项
 options = Options()
@@ -28,91 +40,91 @@ options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) App
 
 service = Service(executable_path=driver_path)
 
-try:
-    driver = webdriver.Edge(service=service, options=options)
 
-    # 隐藏自动化特征
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        "source": """
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => undefined
-        });
-        Object.defineProperty(navigator, 'languages', {
-            get: () => ['zh-CN', 'zh', 'en']
-        });
-        """
-    })
+driver = webdriver.Edge(service=service, options=options)
 
-    print("浏览器启动成功，开始模拟人类行为...")
+# 隐藏自动化特征
+driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+    "source": """
+    Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+    });
+    Object.defineProperty(navigator, 'languages', {
+        get: () => ['zh-CN', 'zh', 'en']
+    });
+    """
+})
 
-    # 访问目标网站
-    driver.get("https://cn.bing.com/")
-    time.sleep(random.uniform(2, 4))  # 随机等待
+print("浏览器启动成功，开始模拟人类行为...")
+
+# 访问目标网站
+driver.get("https://cn.bing.com/")
+sleep(random.uniform(2, 4))  # 随机等待
+
+print("页面标题:", driver.title)
+
+for _ in range(20):
+    resource = requests.get("https://wapi.wangyupu.com/api/nng")
+    data = json.loads(resource.text)
+
+    search_box = driver.find_element(By.NAME, "q")
+
+    sleep(random.uniform(0.1, 0.3))
+    search_box.clear()
+    for char in data['name']:
+        search_box.send_keys(char)
+        sleep(random.uniform(0.05, 0.2))# 随机打字间隔
+
+    search_box.send_keys(Keys.RETURN)
 
     print("页面标题:", driver.title)
+    sleep(1)
 
-    for _ in range(20):
-        resource = requests.get("https://wapi.wangyupu.com/api/nng")
-        data = json.loads(resource.text)
+    # 创建动作链对象
+    actions = ActionChains(driver)
 
-        search_box = driver.find_element(By.NAME, "q")
+    print("开始模拟鼠标滚动行为...")
 
-        time.sleep(random.uniform(0.1, 0.3))
-        search_box.clear()
-        for char in data['name']:
-            search_box.send_keys(char)
-            time.sleep(random.uniform(0.05, 0.2))# 随机打字间隔
+    # 模拟向下滚动（分多次，模拟人类行为）
+    scroll_steps_down = random.randint(8, 15)  # 随机滚动次数
+    for i in range(scroll_steps_down):
+        # 随机滚动距离（像素）
+        scroll_distance = random.randint(100, 300)
+        driver.execute_script(f"window.scrollBy(0, {scroll_distance});")
 
-        search_box.send_keys(Keys.RETURN)
+        # 随机停顿时间
+        pause_time = random.uniform(0.1, 0.8)
+        sleep(pause_time)
 
-        print("页面标题:", driver.title)
-        sleep(1)
+        if i % 3 == 0:  # 每隔几次稍微停留长一点
+            sleep(random.uniform(0.5, 1.5))
 
-        # 创建动作链对象
-        actions = ActionChains(driver)
+        print(f"向下滚动第 {i+1} 次，距离: {scroll_distance}px")
 
-        print("开始模拟鼠标滚动行为...")
+    # 在底部停留一会儿
+    sleep(random.uniform(1, 3))
+    print("到达页面底部，准备返回...")
 
-        # 模拟向下滚动（分多次，模拟人类行为）
-        scroll_steps_down = random.randint(8, 15)  # 随机滚动次数
-        for i in range(scroll_steps_down):
-            # 随机滚动距离（像素）
-            scroll_distance = random.randint(100, 300)
-            driver.execute_script(f"window.scrollBy(0, {scroll_distance});")
+    # 模拟向上滚动返回
+    scroll_steps_up = random.randint(6, 12)
+    for i in range(scroll_steps_up):
+        scroll_distance = random.randint(150, 350)
+        driver.execute_script(f"window.scrollBy(0, -{scroll_distance});")
 
-            # 随机停顿时间
-            pause_time = random.uniform(0.1, 0.8)
-            time.sleep(pause_time)
+        pause_time = random.uniform(0.1, 0.6)
+        sleep(pause_time)
 
-            if i % 3 == 0:  # 每隔几次稍微停留长一点
-                time.sleep(random.uniform(0.5, 1.5))
+        if i % 2 == 0:
+            sleep(random.uniform(0.3, 1.0))
 
-            print(f"向下滚动第 {i+1} 次，距离: {scroll_distance}px")
+        print(f"向上滚动第 {i+1} 次，距离: {scroll_distance}px")
 
-        # 在底部停留一会儿
-        time.sleep(random.uniform(1, 3))
-        print("到达页面底部，准备返回...")
-
-        # 模拟向上滚动返回
-        scroll_steps_up = random.randint(6, 12)
-        for i in range(scroll_steps_up):
-            scroll_distance = random.randint(150, 350)
-            driver.execute_script(f"window.scrollBy(0, -{scroll_distance});")
-
-            pause_time = random.uniform(0.1, 0.6)
-            time.sleep(pause_time)
-
-            if i % 2 == 0:
-                time.sleep(random.uniform(0.3, 1.0))
-
-            print(f"向上滚动第 {i+1} 次，距离: {scroll_distance}px")
-
-        # 回到顶部后稍作停留
-        time.sleep(random.uniform(1, 2))
-        print("已回到页面顶部")
+    # 回到顶部后稍作停留
+    sleep(random.uniform(1, 2))
+    print("已回到页面顶部")
 
 
-finally:
-    print("正在关闭浏览器...")
-    driver.quit()
-    print("程序执行完毕")
+
+print("正在关闭浏览器...")
+driver.quit()
+print("程序执行完毕")
